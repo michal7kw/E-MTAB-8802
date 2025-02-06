@@ -3,6 +3,8 @@ library(ggplot2)
 library(gridExtra)
 library(dplyr)
 library(tidyr)
+library(grid)  # Add this for textGrob
+library(Hmisc) # Add this for stat_summary
 
 #####################################################################
 # Load Results from CSV files
@@ -106,16 +108,20 @@ transporter_data <- diff_expr %>%
 transporter_plot <- ggplot(transporter_data, 
                           aes(x=condition, y=count, fill=condition)) +
     # Bar for mean value
-    stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.9)) +
+    stat_summary(fun = mean, geom = "bar", 
+                position = position_dodge(width = 0.9),
+                na.rm = TRUE) +
     # Error bars for mean ± standard deviation
     stat_summary(fun.data = mean_sdl, 
                 geom = "errorbar", 
                 position = position_dodge(width = 0.9), 
-                width = 0.2) +
+                width = 0.2,
+                na.rm = TRUE) +
     # Individual data points
     geom_point(position = position_dodge(width = 0.9), 
                size = 2, 
-               alpha = 0.6) +
+               alpha = 0.6,
+               na.rm = TRUE) +
     facet_wrap(~gene_symbol, scales="free_y", ncol=4) +
     scale_fill_manual(values=c("DMEM"="#E0E0E0", "NB"="#808080")) + # Lighter grey colors
     theme_bw() +
@@ -154,8 +160,11 @@ combined_plot <- grid.arrange(
     pca_plot, volcano_plot, transporter_plot,
     layout_matrix = rbind(c(1,2), c(3,3)),
     heights = c(1, 1.5),
-    top = textGrob("Basal media alters the transcriptome and transporter activity in CC3-derived brain microvascular endothelial cell-like cells",
-                  gp = gpar(fontsize = 12))
+    top = textGrob(
+        "Basal media alters the transcriptome and transporter activity in CC3-derived brain microvascular endothelial cell-like cells",
+        gp = gpar(fontsize = 12),
+        just = "center"
+    )
 )
 
 ggsave("./data/plots/combined_plot.png", combined_plot, width=12, height=10, dpi=300)
