@@ -31,7 +31,7 @@ library(org.Hs.eg.db)
 library(dplyr)
 
 # Set working directory to data location
-setwd(".")  # Changed from "./data" to "." since we'll use "./data" for output
+setwd("/beegfs/scratch/ric.broccoli/kubacki.michal/E-MTAB-8802")  # Changed from "./data" to "." since we'll use "./data" for output
 
 # Get list of all HTSeq count files in the directory
 count_files <- list.files("./data", pattern="*_HTSeq_formatted.count$", full.names=TRUE)
@@ -172,6 +172,12 @@ normalized_counts <- counts(dds, normalized=TRUE)
 # Clean up column names to match original sample names
 colnames(normalized_counts) <- gsub("\\.", "-", colnames(normalized_counts))
 write.csv(normalized_counts, "./data/normalized_counts.csv")
+
+# Save raw counts
+raw_counts <- counts(dds, normalized=FALSE)
+# Clean up column names to match original sample names
+colnames(raw_counts) <- gsub("\\.", "-", colnames(raw_counts))
+write.csv(raw_counts, "./data/raw_counts.csv")
 
 # Save complete results table with more detailed information
 results_df <- as.data.frame(res) %>%
