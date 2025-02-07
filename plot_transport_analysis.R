@@ -1,31 +1,26 @@
-# Load required libraries
 library(ggplot2)
 library(gridExtra)
 library(dplyr)
 library(tidyr)
-library(grid)  # Add this for textGrob
-library(Hmisc) # Add this for stat_summary
+library(grid)
+library(Hmisc)
 
 #####################################################################
 # Load Results from CSV files
 #####################################################################
 
 # Load the complete differential expression results
-diff_expr <- read.csv("./data/differential_expression_results.csv", row.names=1)
+diff_expr <- read.csv("./data/differential_expression_results.csv", row.names = 1, check.names = FALSE)
 
-# Load normalized counts and sample information
-norm_counts <- read.csv("./data/normalized_counts.csv", row.names=1)
-sample_info <- read.csv("./data/sample_info.csv", row.names=1)
-
-# Clean up sample names in normalized counts
-colnames(norm_counts) <- gsub("^X", "", colnames(norm_counts))
-colnames(norm_counts) <- gsub("\\.", "-", colnames(norm_counts))
+# Load normalized counts and sample information with original column names preserved
+norm_counts <- read.csv("./data/normalized_counts.csv", row.names = 1, check.names = FALSE)
+sample_info <- read.csv("./data/sample_info.csv", row.names = 1, check.names = FALSE)
 
 # Remove failed sample if present
-if("3373-EN-12" %in% colnames(norm_counts)) {
+if ("3373-EN-12" %in% colnames(norm_counts)) {
     norm_counts <- norm_counts[, !colnames(norm_counts) %in% "3373-EN-12"]
 }
-if("3373-EN-12" %in% rownames(sample_info)) {
+if ("3373-EN-12" %in% rownames(sample_info)) {
     sample_info <- sample_info[!rownames(sample_info) %in% "3373-EN-12", ]
 }
 
@@ -102,11 +97,13 @@ transporter_data <- diff_expr %>%
             stringsAsFactors = FALSE
         ),
         by = "sample"
-    )
+    ) %>%
+    # Ensure condition is a factor with proper order
+    mutate(condition = factor(condition, levels = c("DMEM", "NB")))
 
 # Create bar plot for each transporter with mean ± SD
 transporter_plot <- ggplot(transporter_data, 
-                          aes(x=condition, y=count, fill=condition)) +
+                          aes(x = condition, y = count, fill = condition)) +
     # Bar for mean value
     stat_summary(fun = mean, geom = "bar", 
                 position = position_dodge(width = 0.9),
@@ -123,18 +120,17 @@ transporter_plot <- ggplot(transporter_data,
                alpha = 0.6,
                na.rm = TRUE) +
     facet_wrap(~gene_symbol, scales="free_y", ncol=4) +
-    scale_fill_manual(values=c("DMEM"="#E0E0E0", "NB"="#808080")) + # Lighter grey colors
+    scale_fill_manual(values = c("DMEM" = "#404040", "NB" = "#CCCCCC")) +
     theme_bw() +
+    # Update theme to match the transporter plot in table4
     theme(
-        axis.text.x = element_text(angle=45, hjust=1),
-        strip.background = element_blank(),
-        strip.text = element_text(size=12, face="bold"),
-        panel.grid.major = element_line(color = "grey90"),
+        panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        plot.title = element_text(hjust = 0, size = 12),
-        legend.title = element_text(size=10),
-        legend.text = element_text(size=10),
-        legend.position = "top"
+        strip.background = element_blank(),
+        strip.text = element_text(size = 12, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top",
+        plot.title = element_text(hjust = 0)
     ) +
     ylab("Normalized counts") +
     xlab("") +
