@@ -9,19 +9,6 @@
 dir.create("./data", showWarnings = FALSE)
 dir.create("./data/plots", showWarnings = FALSE)
 
-# Install and load required Bioconductor packages
-# BiocManager is the package manager for Bioconductor
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-
-# Install core analysis packages:
-# - DESeq2: Main package for differential expression analysis
-# - pheatmap: For creating heatmaps
-# - ggplot2: For creating plots
-# - EnhancedVolcano: For creating enhanced volcano plots
-# - org.Hs.eg.db: Human genome annotation database
-BiocManager::install(c("DESeq2", "pheatmap", "ggplot2", "EnhancedVolcano", "org.Hs.eg.db"))
-
 # Load all required libraries
 library(DESeq2)
 library(pheatmap)
@@ -31,12 +18,12 @@ library(org.Hs.eg.db)
 library(dplyr)
 
 # Set working directory to data location
-setwd("/beegfs/scratch/ric.broccoli/kubacki.michal/E-MTAB-8802")  # Changed from "./data" to "." since we'll use "./data" for output
+setwd("/beegfs/scratch/ric.broccoli/kubacki.michal/E-MTAB-8802")
 
 # Get list of all HTSeq count files in the directory
 count_files <- list.files("./data", pattern="*_HTSeq_formatted.count$", full.names=TRUE)
 
-# Remove failed sample
+# Remove *failed sample
 count_files <- count_files[!grepl("3373-EN-12", count_files)]
 
 #####################################################################
@@ -112,13 +99,16 @@ print(actual_sample_order)
 #####################################################################
 
 # Create metadata for samples
-# Assumes samples ending with -1, -2, or -3 are condition B, others are condition A
 sample_conditions <- data.frame(
     sample = actual_sample_order,
-    condition = ifelse(grepl("-(1|2|3)$", actual_sample_order), 
-                      "NB",  # Changed from conditionB to NB
-                      "DMEM")  # Changed from conditionA to DMEM
+    condition = ifelse(grepl("3373-EN-[123]$", actual_sample_order), 
+                      "NB",  # NB condition for samples EN-1, EN-2, EN-3
+                      "DMEM")  # DMEM condition for samples EN-10, EN-11
 )
+
+# Print sample conditions for verification
+print("Sample conditions:")
+print(sample_conditions)
 
 # Create sample information data frame for DESeq2
 sampleInfo <- data.frame(
@@ -126,8 +116,13 @@ sampleInfo <- data.frame(
     row.names = sample_conditions$sample
 )
 
-# Print sample information for verification
-print("Sample Information:")
+# Verify that sample names match between countData and sampleInfo
+if (!all(colnames(countData) == rownames(sampleInfo))) {
+    stop("Sample names in countData do not match sampleInfo. Please check the data.")
+}
+
+# Print final sample information for verification
+print("Final Sample Information:")
 print(sampleInfo)
 
 #####################################################################

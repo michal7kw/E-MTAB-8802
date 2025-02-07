@@ -10,14 +10,26 @@ library(tibble)  # Add this for rownames_to_column function
 # Read normalized counts from both sources
 #####################################################################
 
-# Read normalized counts from DESeq2 analysis
-normalized_counts <- read.csv("./data/normalized_counts.csv", row.names=1)
+# Read normalized counts from DESeq2 analysis with original column names
+normalized_counts <- read.csv("./data/normalized_counts.csv", row.names = 1, check.names = FALSE)
+cat("\nDebug: Head of normalized_counts:\n")
+print(head(normalized_counts))
 
-# Read raw counts from DESeq2 analysis
-raw_counts <- read.csv("./data/raw_counts.csv", row.names=1)
+# Read raw counts from DESeq2 analysis with original column names
+raw_counts <- read.csv("./data/raw_counts.csv", row.names = 1, check.names = FALSE)
+cat("\nDebug: Head of raw_counts:\n")
+print(head(raw_counts))
 
 # Read table4 data
-table4 <- read.csv("./data/table4.csv", stringsAsFactors=FALSE)
+table4 <- read.csv("./data/table4.csv", stringsAsFactors = FALSE)
+cat("\nDebug: Original table4 data (first few rows):\n")
+print(head(table4))
+
+# Clean up ensemblid column by removing version numbers (e.g., '.16')
+table4 <- table4 %>%
+  mutate(ensemblid = sub("\\..*", "", ensemblid))
+cat("\nDebug: Cleaned table4 data (first few rows):\n")
+print(head(table4))
 
 #####################################################################
 # List of genes to compare
@@ -60,7 +72,7 @@ print(gene_mapping)
 #####################################################################
 
 # Extract and reshape raw counts from DESeq2 analysis
-raw_deseq2_data <- raw_counts[genes_of_interest,] %>%
+raw_deseq2_data <- raw_counts[genes_of_interest, ] %>%
     as.data.frame() %>%
     rownames_to_column("ensembl_id") %>%
     left_join(gene_mapping, by = "ensembl_id") %>%
@@ -70,11 +82,19 @@ raw_deseq2_data <- raw_counts[genes_of_interest,] %>%
         values_to = "deseq2_count"
     ) %>%
     mutate(
-        condition = ifelse(grepl("^NB", sample), "NB", "DMEM")
+        # Assign conditions based on sample names
+        condition = case_when(
+            sample %in% c("3373-EN-1", "3373-EN-2", "3373-EN-3") ~ "NB",
+            sample %in% c("3373-EN-10", "3373-EN-11") ~ "DMEM",
+            TRUE ~ NA_character_
+        )
     )
+cat("\nDebug: Processed raw_deseq2_data (first few rows):\n")
+print(head(raw_deseq2_data))
 
 # Process raw counts from table4
 table4_raw_data <- table4 %>%
+    # Filter for genes after cleaning ensemblid
     dplyr::filter(ensemblid %in% genes_of_interest) %>%
     dplyr::select(ensemblid, hgnc_symbol, 
                   DMEM_10_raw, DMEM_11_raw, 
@@ -86,16 +106,23 @@ table4_raw_data <- table4 %>%
     ) %>%
     mutate(
         sample = sub("_raw$", "", sample),
-        condition = ifelse(grepl("^NB", sample), "NB", "DMEM")
+        # Assign conditions for table4 data
+        condition = case_when(
+            sample %in% c("NB_1", "NB_2", "NB_3") ~ "NB",
+            sample %in% c("DMEM_10", "DMEM_11") ~ "DMEM",
+            TRUE ~ NA_character_
+        )
     ) %>%
     dplyr::rename(ensembl_id = ensemblid)
+cat("\nDebug: Processed table4_raw_data (first few rows):\n")
+print(head(table4_raw_data))
 
 #####################################################################
 # Process normalized counts data from both sources
 #####################################################################
 
 # Extract and reshape normalized counts from DESeq2 analysis
-normalized_deseq2_data <- normalized_counts[genes_of_interest,] %>%
+normalized_deseq2_data <- normalized_counts[genes_of_interest, ] %>%
     as.data.frame() %>%
     rownames_to_column("ensembl_id") %>%
     left_join(gene_mapping, by = "ensembl_id") %>%
@@ -105,11 +132,19 @@ normalized_deseq2_data <- normalized_counts[genes_of_interest,] %>%
         values_to = "deseq2_count"
     ) %>%
     mutate(
-        condition = ifelse(grepl("^NB", sample), "NB", "DMEM")
+        # Assign conditions based on sample names
+        condition = case_when(
+            sample %in% c("3373-EN-1", "3373-EN-2", "3373-EN-3") ~ "NB",
+            sample %in% c("3373-EN-10", "3373-EN-11") ~ "DMEM",
+            TRUE ~ NA_character_
+        )
     )
+cat("\nDebug: Processed normalized_deseq2_data (first few rows):\n")
+print(head(normalized_deseq2_data))
 
 # Process normalized counts from table4
 table4_normalized_data <- table4 %>%
+    # Filter for the genes of interest
     dplyr::filter(ensemblid %in% genes_of_interest) %>%
     dplyr::select(ensemblid, hgnc_symbol, 
                   DMEM_10_normalized, DMEM_11_normalized,
@@ -121,9 +156,16 @@ table4_normalized_data <- table4 %>%
     ) %>%
     mutate(
         sample = sub("_normalized$", "", sample),
-        condition = ifelse(grepl("^NB", sample), "NB", "DMEM")
+        # Assign conditions for table4 normalized data
+        condition = case_when(
+            sample %in% c("NB_1", "NB_2", "NB_3") ~ "NB",
+            sample %in% c("DMEM_10", "DMEM_11") ~ "DMEM",
+            TRUE ~ NA_character_
+        )
     ) %>%
     dplyr::rename(ensembl_id = ensemblid)
+cat("\nDebug: Processed table4_normalized_data (first few rows):\n")
+print(head(table4_normalized_data))
 
 #####################################################################
 # Create comparison data for both raw and normalized counts
@@ -153,7 +195,12 @@ prepare_comparison_data <- function(deseq2_data, table4_data) {
 }
 
 raw_comparison <- prepare_comparison_data(raw_deseq2_data, table4_raw_data)
+cat("\nDebug: Raw counts comparison data:\n")
+print(raw_comparison)
+
 normalized_comparison <- prepare_comparison_data(normalized_deseq2_data, table4_normalized_data)
+cat("\nDebug: Normalized counts comparison data:\n")
+print(normalized_comparison)
 
 #####################################################################
 # Create plots
@@ -161,6 +208,7 @@ normalized_comparison <- prepare_comparison_data(normalized_deseq2_data, table4_
 
 # Function to create comparison plot
 create_comparison_plot <- function(comparison_data, title_prefix) {
+    # Prepare the data for plotting
     plot_data <- comparison_data %>%
         pivot_longer(
             cols = c(deseq2_mean, table4_mean),
@@ -168,6 +216,8 @@ create_comparison_plot <- function(comparison_data, title_prefix) {
             values_to = "count"
         ) %>%
         mutate(source = ifelse(source == "deseq2_mean", "HTSeq", "Table 4"))
+    cat("\nDebug: Plot data preview for ", title_prefix, ":\n", sep = "")
+    print(head(plot_data))
     
     ggplot(plot_data, 
            aes(x = condition, y = count, fill = source)) +
@@ -197,6 +247,7 @@ ggsave("./data/plots/raw_count_comparison_plot.png",
        width = 12, 
        height = 8, 
        dpi = 300)
+cat("\nDebug: Saved raw counts comparison plot to './data/plots/raw_count_comparison_plot.png'\n")
 
 # Create and save normalized counts comparison plot
 normalized_plot <- create_comparison_plot(normalized_comparison, "Comparison of normalized")
@@ -204,4 +255,5 @@ ggsave("./data/plots/normalized_count_comparison_plot.png",
        normalized_plot, 
        width = 12, 
        height = 8, 
-       dpi = 300) 
+       dpi = 300)
+cat("\nDebug: Saved normalized counts comparison plot to './data/plots/normalized_count_comparison_plot.png'\n") 
